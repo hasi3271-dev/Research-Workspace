@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import ImportExistingData from "./import-existing-data";
 
 const tabs = [
   ["dashboard","Dashboard"],
@@ -209,17 +210,20 @@ function AI(){
 }
 
 function Settings(){
-  return <section className="panel section">
-    <SectionTitle title="Architecture" sub="포트폴리오에 보여줄 핵심 설계"/>
-    <div className="arch">
-      <div><b>Public App</b><span>GitHub + Vercel</span></div>
-      <div className="arrow">→</div>
-      <div><b>Private App</b><span>Authenticated workspace</span></div>
-      <div className="arrow">→</div>
-      <div><b>Supabase</b><span>PostgreSQL + RLS</span></div>
-    </div>
-    <p className="mutedText">공개 소스 코드와 실제 개인 데이터를 분리하고, 사용자별 접근 제어를 통해 데이터가 섞이지 않도록 설계합니다.</p>
-  </section>;
+  return <>
+    <section className="panel section">
+      <SectionTitle title="Architecture" sub="포트폴리오에 보여줄 핵심 설계"/>
+      <div className="arch">
+        <div><b>Public App</b><span>GitHub + Vercel</span></div>
+        <div className="arrow">→</div>
+        <div><b>Private App</b><span>Authenticated workspace</span></div>
+        <div className="arrow">→</div>
+        <div><b>Supabase</b><span>PostgreSQL + RLS</span></div>
+      </div>
+      <p className="mutedText">공개 소스 코드와 실제 개인 데이터를 분리하고, 사용자별 접근 제어를 통해 데이터가 섞이지 않도록 설계합니다.</p>
+    </section>
+    <ImportExistingData/>
+  </>;
 }
 
 function KPI({label,value}){return <div className="panel kpi"><span>{label}</span><b>{value}</b></div>}
