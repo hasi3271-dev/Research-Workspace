@@ -9,12 +9,15 @@ Research tasks, paper progress, notes, career experiences and job-search materia
 Research Workspace connects these workflows in one place:
 
 - Dashboard
+- Planner-style Todos
 - Projects
 - Papers
 - Research Notes
 - STAR Experiences
+- Portfolio Archive
 - Job Tracker
 - Calendar
+- Global Search
 - AI Assistant
 - Public/Private data separation
 
@@ -67,12 +70,20 @@ Schema issues are handled in the mapping layer when possible. For example, an ex
 ### Migration Strategy
 Compatibility migrations are written to be idempotent and non-destructive. They use patterns such as `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, conditional policy and trigger creation and non-validating foreign keys where appropriate, preserving existing rows while upgrading older Supabase projects.
 
+### Workspace Information Architecture
+After the Supabase import was complete, the UI was reorganized around user workflows instead of flat database tables. Todos use a planner-style Year / Month / Day hierarchy, experiences use a chronological STAR timeline, projects are grouped by status and area, papers are grouped by workflow stage with nested figures, notes support search and classification, and portfolio items preserve the legacy year/category archive.
+
+### Production Deployment Workflow
+GitHub is the canonical source for deployment. Code changes are tested locally, committed to `main`, pushed to GitHub and deployed automatically by Vercel. Production uses Supabase environment variables configured in Vercel, while `.env.local`, private imports and secrets remain outside Git.
+
 ### Lessons Learned
 - Browser storage exports should be automated and validated, not copied by hand.
 - Raw legacy records should be preserved alongside normalized database fields.
 - Preview counts make imports safer and easier to review.
 - Authentication and RLS should be part of the import path.
 - Reproducible migrations are safer than one-off manual database fixes.
+- Workspace screens should reflect how the data is used, not just how tables are stored.
+- Production deploys should be reproducible from GitHub without touching Supabase data.
 
 ## Run
 ```bash
