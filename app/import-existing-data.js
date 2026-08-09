@@ -14,7 +14,7 @@ const IMPORT_ORDER = [
   ["todos", "todos"]
 ];
 
-export default function ImportExistingData() {
+export default function ImportExistingData({ onImportComplete } = {}) {
   const [files, setFiles] = useState([]);
   const [preview, setPreview] = useState(null);
   const [parseErrors, setParseErrors] = useState([]);
@@ -77,6 +77,7 @@ export default function ImportExistingData() {
 
       const summary = await commitImportPlan(preview, authData.user.id);
       setResult({ ok: true, summary });
+      onImportComplete?.(summary);
     } catch (error) {
       setResult({ ok: false, message: error.message });
     } finally {
@@ -156,6 +157,8 @@ export default function ImportExistingData() {
       <PreviewStat label="Figures" value={preview.counts.figures}/>
       <PreviewStat label="Tasks" value={preview.counts.tasks}/>
       <PreviewStat label="Notes" value={preview.counts.notes}/>
+      <PreviewStat label="Projects" value={preview.counts.projects}/>
+      <PreviewStat label="Experiences" value={preview.counts.experiences}/>
     </div>}
 
     {(parseErrors.length > 0 || preview?.warnings.length > 0) && <div className="importMessages warn">
