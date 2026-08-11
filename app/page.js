@@ -117,8 +117,11 @@ export default function Page() {
   }, [authLoading, loadWorkspace, user?.id]);
 
   const references = useMemo(() => buildReferences(workspace), [workspace]);
-  const counts = useMemo(() => buildCounts(workspace), [workspace]);
-  const globalResults = useMemo(() => searchWorkspace(workspace, globalQuery), [workspace, globalQuery]);
+  const activeWorkspace = useMemo(() => toActiveWorkspace(workspace), [workspace]);
+  const legacyCounts = useMemo(() => buildLegacyCounts(workspace, activeWorkspace), [workspace, activeWorkspace]);
+  const activeReferences = useMemo(() => buildReferences(activeWorkspace), [activeWorkspace]);
+  const counts = useMemo(() => buildCounts(activeWorkspace), [activeWorkspace]);
+  const globalResults = useMemo(() => searchWorkspace(activeWorkspace, globalQuery), [activeWorkspace, globalQuery]);
   const viewState = {
     loading: authLoading || dataState.loading,
     error: dataState.error,
@@ -214,24 +217,24 @@ export default function Page() {
 
       {viewState.signedIn && <GlobalSearch query={globalQuery} setQuery={setGlobalQuery} results={globalResults} setTab={setTab} openEditor={openEditor}/>}
 
-      {tab === "dashboard" && <Dashboard data={workspace} counts={counts} refs={references} state={viewState} openEditor={openEditor}/>}
+      {tab === "dashboard" && <Dashboard data={activeWorkspace} allCounts={buildCounts(workspace)} counts={counts} refs={activeReferences} state={viewState} openEditor={openEditor}/>}
       {tab === "todos" && <Todos items={workspace.todos} refs={references} state={viewState} openEditor={openEditor} quickUpdate={quickUpdate}/>}
-      {tab === "projects" && <Projects data={workspace} refs={references} state={viewState} openEditor={openEditor}/>}
-      {tab === "papers" && <Papers data={workspace} refs={references} state={viewState} openEditor={openEditor}/>}
-      {tab === "notes" && <Notes items={workspace.notes} refs={references} state={viewState} openEditor={openEditor}/>}
-      {tab === "star" && <Experiences data={workspace} refs={references} state={viewState} openEditor={openEditor}/>}
-      {tab === "portfolio" && <Portfolio items={workspace.portfolioItems} refs={references} state={viewState} openEditor={openEditor}/>}
+      {tab === "projects" && <Projects data={activeWorkspace} refs={activeReferences} state={viewState} openEditor={openEditor}/>}
+      {tab === "papers" && <Papers data={activeWorkspace} refs={activeReferences} state={viewState} openEditor={openEditor}/>}
+      {tab === "notes" && <Notes items={activeWorkspace.notes} refs={activeReferences} state={viewState} openEditor={openEditor}/>}
+      {tab === "star" && <Experiences data={activeWorkspace} refs={activeReferences} state={viewState} openEditor={openEditor}/>}
+      {tab === "portfolio" && <Portfolio items={activeWorkspace.portfolioItems} refs={activeReferences} state={viewState} openEditor={openEditor}/>}
       {tab === "jobs" && <Jobs state={viewState}/>}
       {tab === "calendar" && <Calendar tasks={workspace.todos} state={viewState} openEditor={openEditor}/>}
       {tab === "ai" && <AI/>}
-      {tab === "settings" && <Settings counts={counts} state={viewState} onImportComplete={() => user?.id && loadWorkspace(user.id)}/>}
+      {tab === "settings" && <Settings counts={counts} legacyCounts={legacyCounts} state={viewState} onImportComplete={() => user?.id && loadWorkspace(user.id)}/>}
 
       {editor && <RecordEditor editor={editor} refs={references} saveState={saveState} setSaveState={setSaveState} onSave={saveRecord} onDelete={deleteRecord} onClose={closeEditor}/>}
     </main>
   </div>;
 }
 
-function Dashboard({ data, counts, refs, state, openEditor }) {
+function Dashboard({ data, allCounts, counts, refs, state, openEditor }) {
   const today = todayIso();
   const weekEnd = addDays(today, 7);
   const openTodos = data.todos.filter(item => !isDone(item));
@@ -240,12 +243,12 @@ function Dashboard({ data, counts, refs, state, openEditor }) {
   const weekTodos = openTodos.filter(item => todoDate(item) && todoDate(item) > today && todoDate(item) <= weekEnd);
   const papersNeedingAttention = data.papers.filter(item => !["published", "archived"].includes(item.status)).slice(0, 5);
 
-  return <DataViewState state={state} isEmpty={counts.total === 0} emptyTitle="No workspace data yet" emptyBody="Import existing data or add Supabase rows for this user to populate the dashboard.">
+  return <DataViewState state={state} isEmpty={allCounts.total === 0} emptyTitle="아직 표시할 데이터가 없습니다" emptyBody="로그인 후 Todo와 새로 작성한 연구 기록이 여기에 표시됩니다.">
     <section className="hero panel">
       <div>
         <span className="eyebrow">TODAY</span>
-        <h2>{todayTodos.length} open todos for today</h2>
-        <p>{overdueTodos.length} overdue, {weekTodos.length} due in the next 7 days, {data.projects.filter(project => project.status === "active").length} active projects.</p>
+        <h2>{todayTodos.length}개 오늘 Todo</h2>
+        <p>지연 {overdueTodos.length}개, 7일 내 마감 {weekTodos.length}개. Projects, Papers, Notes, Experiences, Portfolio는 새로 작성한 항목만 표시합니다.</p>
       </div>
       <button className="secondary" onClick={() => openEditor("todo", null, { due_on: today })}>Add Todo</button>
     </section>
@@ -258,35 +261,35 @@ function Dashboard({ data, counts, refs, state, openEditor }) {
 
     <div className="two">
       <section className="panel section">
-        <SectionTitle title="Active Projects" sub="Next actions first"/>
-        <InlineEmpty items={data.projects} message="No projects to show."/>
+        <SectionTitle title="진행 중 Projects" sub="새로 작성한 프로젝트 기준"/>
+        <InlineEmpty items={data.projects} message="아직 등록한 프로젝트가 없습니다."/>
         {data.projects.filter(project => project.status === "active").slice(0, 5).map(project => <div className="projectRow clickable" key={project.id} onClick={() => openEditor("project", project)}>
           <div><b>{displayTitle(project, "Untitled project")}</b><span>{project.next_action || project.summary || "No next action recorded"}</span></div><strong>{progressValue(project.progress)}%</strong>
         </div>)}
       </section>
       <section className="panel section">
-        <SectionTitle title="Papers Needing Attention" sub="Open workflow stages"/>
-        <InlineEmpty items={papersNeedingAttention} message="No active papers to show."/>
+        <SectionTitle title="작성 중 Papers" sub="새로 작성한 논문 기록 기준"/>
+        <InlineEmpty items={papersNeedingAttention} message="아직 등록한 논문이 없습니다."/>
         {papersNeedingAttention.map(paper => <ProgressRow key={paper.id} label={displayTitle(paper, "Untitled paper")} value={progressValue(paper.progress)} status={`${paperStage(paper)} | ${refs.figuresByPaper.get(paper.id)?.length || 0} figures`} onClick={() => openEditor("paper", paper)}/>)}
       </section>
     </div>
 
     <div className="grid4">
-      <KPI label="Todos" value={counts.todos}/>
+      <KPI label="Todos" value={allCounts.todos}/>
+      <KPI label="Projects" value={counts.projects}/>
       <KPI label="Notes" value={counts.notes}/>
-      <KPI label="Experiences" value={counts.experiences}/>
       <KPI label="Portfolio" value={counts.portfolioItems}/>
     </div>
 
     <div className="two">
       <section className="panel section">
-        <SectionTitle title="Recently Edited Notes" sub="Fast memory recall"/>
-        <InlineEmpty items={data.notes} message="No notes yet."/>
+        <SectionTitle title="최근 Research Notes" sub="새 기록 기준"/>
+        <InlineEmpty items={data.notes} message="아직 작성한 노트가 없습니다."/>
         {data.notes.slice(0, 4).map(note => <CompactRecord key={note.id} title={displayTitle(note, "Untitled note")} meta={note.note_type || "research"} onClick={() => openEditor("note", note)}/>)}
       </section>
       <section className="panel section">
-        <SectionTitle title="Recent Experiences" sub="Resume and interview material"/>
-        <InlineEmpty items={data.experiences} message="No experiences yet."/>
+        <SectionTitle title="최근 STAR Experiences" sub="자기소개서와 면접 소재"/>
+        <InlineEmpty items={data.experiences} message="아직 등록한 경험이 없습니다."/>
         {data.experiences.slice(0, 4).map(item => <CompactRecord key={item.id} title={displayTitle(item, "Untitled experience")} meta={item.category || item.role || "Experience"} onClick={() => openEditor("experience", item)}/>)}
       </section>
     </div>
@@ -555,7 +558,7 @@ function AI() {
   </div>;
 }
 
-function Settings({ counts, state, onImportComplete }) {
+function Settings({ counts, legacyCounts, state, onImportComplete }) {
   return <>
     <section className="panel section">
       <SectionTitle title="Architecture" sub="Authenticated private workspace"/>
@@ -570,7 +573,7 @@ function Settings({ counts, state, onImportComplete }) {
     </section>
 
     <section className="panel section">
-      <SectionTitle title="Supabase Row Counts" sub={state.loadedAt ? `Last refreshed ${state.loadedAt.toLocaleTimeString()}` : "Counts from the current authenticated query"}/>
+      <SectionTitle title="현재 작업 공간 Row Counts" sub={state.loadedAt ? `Last refreshed ${state.loadedAt.toLocaleTimeString()}` : "Todo는 전체 보존, 나머지는 새로 작성한 active 항목 기준"}/>
       <div className="importPreview">
         <PreviewStat label="Todos" value={counts.todos}/>
         <PreviewStat label="Portfolio Items" value={counts.portfolioItems}/>
@@ -581,6 +584,21 @@ function Settings({ counts, state, onImportComplete }) {
         <PreviewStat label="Experiences" value={counts.experiences}/>
         <PreviewStat label="Total" value={counts.total}/>
       </div>
+    </section>
+
+    <section className="panel section">
+      <SectionTitle title="보존된 레거시 데이터" sub="삭제하지 않고 Supabase에 보존되어 있으며, 기본 화면에서는 숨김 처리됩니다."/>
+      <div className="importPreview">
+        <PreviewStat label="Projects" value={legacyCounts.projects}/>
+        <PreviewStat label="Papers" value={legacyCounts.papers}/>
+        <PreviewStat label="Figures" value={legacyCounts.paperFigures}/>
+        <PreviewStat label="Notes" value={legacyCounts.notes}/>
+        <PreviewStat label="Experiences" value={legacyCounts.experiences}/>
+        <PreviewStat label="Portfolio Items" value={legacyCounts.portfolioItems}/>
+        <PreviewStat label="Todos Hidden" value={0}/>
+        <PreviewStat label="Total Preserved" value={legacyCounts.total}/>
+      </div>
+      <p className="mutedText">복구가 필요하면 Supabase에서 `source_file`, `source_key`, `raw_data`가 보존된 레코드를 다시 active로 표시하는 방식으로 되돌릴 수 있습니다. Todo 테이블은 이 분리 대상에서 제외했습니다.</p>
     </section>
 
     <ImportExistingData onImportComplete={onImportComplete}/>
@@ -975,7 +993,7 @@ function buildSavePayload(type, record, values, userId) {
       progress: progressValue(values.progress),
       next_action: emptyToNull(values.next_action),
       summary: emptyToNull(values.summary),
-      metadata: mergeMetadata(baseMetadata, { area: values.area })
+      metadata: mergeMetadata(baseMetadata, { workspace_active: true, area: values.area })
     });
   }
 
@@ -989,7 +1007,7 @@ function buildSavePayload(type, record, values, userId) {
       abstract: emptyToNull(values.summary),
       deadline_on: emptyToNull(values.deadline_on),
       status: dbPaperStatus(values.stage),
-      metadata: mergeMetadata(baseMetadata, { workflow_stage: values.stage, role: values.role, skills: splitList(values.skills) })
+      metadata: mergeMetadata(baseMetadata, { workspace_active: true, workflow_stage: values.stage, role: values.role, skills: splitList(values.skills) })
     });
   }
 
@@ -1003,7 +1021,7 @@ function buildSavePayload(type, record, values, userId) {
       title: values.title || values.claim || values.figure_label || "Untitled figure",
       caption: emptyToNull(values.caption),
       status: values.status || "draft",
-      metadata: mergeMetadata(baseMetadata, { claim: values.claim, data: values.data, next: values.next, reference: values.reference })
+      metadata: mergeMetadata(baseMetadata, { workspace_active: true, claim: values.claim, data: values.data, next: values.next, reference: values.reference })
     });
   }
 
@@ -1017,7 +1035,7 @@ function buildSavePayload(type, record, values, userId) {
       body: values.body || "",
       note_type: dbNoteType(values.note_type),
       tags: splitList(values.tags),
-      metadata: mergeMetadata(baseMetadata, { display_type: values.note_type })
+      metadata: mergeMetadata(baseMetadata, { workspace_active: true, display_type: values.note_type })
     });
   }
 
@@ -1036,6 +1054,7 @@ function buildSavePayload(type, record, values, userId) {
       tags: splitList(values.skills),
       occurred_on: emptyToNull(values.occurred_on),
       metadata: mergeMetadata(baseMetadata, {
+        workspace_active: true,
         related_paper_id: values.paper_id,
         lessons_learned: values.lessons_learned,
         ai_usage: values.ai_usage,
@@ -1059,6 +1078,7 @@ function buildSavePayload(type, record, values, userId) {
     external_url: emptyToNull(values.deployment_url || values.github_url),
     published_at: values.year ? `${values.year}-01-01T00:00:00.000Z` : null,
     metadata: mergeMetadata(baseMetadata, {
+      workspace_active: true,
       year: values.year,
       category: values.category,
       status: values.status,
@@ -1145,6 +1165,22 @@ function buildReferences(data) {
   };
 }
 
+function toActiveWorkspace(data) {
+  return {
+    todos: data.todos,
+    projects: data.projects.filter(isActiveWorkspaceRecord),
+    papers: data.papers.filter(isActiveWorkspaceRecord),
+    paperFigures: data.paperFigures.filter(isActiveWorkspaceRecord),
+    notes: data.notes.filter(isActiveWorkspaceRecord),
+    experiences: data.experiences.filter(isActiveWorkspaceRecord),
+    portfolioItems: data.portfolioItems.filter(isActiveWorkspaceRecord)
+  };
+}
+
+function isActiveWorkspaceRecord(record) {
+  return record?.source_file === "ui" || record?.metadata?.workspace_active === true;
+}
+
 function buildCounts(data) {
   return {
     todos: data.todos.length,
@@ -1155,6 +1191,23 @@ function buildCounts(data) {
     experiences: data.experiences.length,
     portfolioItems: data.portfolioItems.length,
     total: data.todos.length + data.projects.length + data.papers.length + data.paperFigures.length + data.notes.length + data.experiences.length + data.portfolioItems.length
+  };
+}
+
+function buildLegacyCounts(allData, activeData) {
+  return {
+    projects: allData.projects.length - activeData.projects.length,
+    papers: allData.papers.length - activeData.papers.length,
+    paperFigures: allData.paperFigures.length - activeData.paperFigures.length,
+    notes: allData.notes.length - activeData.notes.length,
+    experiences: allData.experiences.length - activeData.experiences.length,
+    portfolioItems: allData.portfolioItems.length - activeData.portfolioItems.length,
+    total: (allData.projects.length - activeData.projects.length) +
+      (allData.papers.length - activeData.papers.length) +
+      (allData.paperFigures.length - activeData.paperFigures.length) +
+      (allData.notes.length - activeData.notes.length) +
+      (allData.experiences.length - activeData.experiences.length) +
+      (allData.portfolioItems.length - activeData.portfolioItems.length)
   };
 }
 

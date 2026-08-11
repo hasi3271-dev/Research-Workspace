@@ -73,6 +73,9 @@ Compatibility migrations are written to be idempotent and non-destructive. They 
 ### Workspace Information Architecture
 After the Supabase import was complete, the UI was reorganized around user workflows instead of flat database tables. Todos use a planner-style Year / Month / Day hierarchy, experiences use a chronological STAR timeline, projects are grouped by status and area, papers are grouped by workflow stage with nested figures, notes support search and classification, and portfolio items preserve the legacy year/category archive.
 
+### Non-Todo Reset
+The Todo system remains fully active and connected to existing Supabase data. Non-Todo legacy/imported records are preserved in Supabase but hidden from the primary workspace unless they are UI-created or marked with `metadata.workspace_active = true`. The reset and restore strategy is documented in [docs/non-todo-reset-plan.md](docs/non-todo-reset-plan.md).
+
 ### Production Deployment Workflow
 GitHub is the canonical source for deployment. Code changes are tested locally, committed to `main`, pushed to GitHub and deployed automatically by Vercel. Production uses Supabase environment variables configured in Vercel, while `.env.local`, private imports and secrets remain outside Git.
 
