@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ImportExistingData from "./import-existing-data";
 import { DEFAULT_SELECTS, TABLES } from "../lib/data-model";
 import { supabase } from "../lib/supabase";
+import { groupTodosByDate } from "../lib/todo-order";
 
 const tabs = [
   ["dashboard", "Dashboard"],
@@ -318,7 +319,7 @@ function Todos({ items, refs, state, openEditor, quickUpdate }) {
     if (priorityFilter !== "All" && String(item.priority || 3) !== priorityFilter) return false;
     return true;
   });
-  const byDate = groupByDate(filtered, todoDate);
+  const byDate = groupTodosByDate(filtered, todoDate, todayIso());
 
   return <DataViewState state={state} isEmpty={items.length === 0} emptyTitle="No todos found" emptyBody="Imported planner items and paper tasks will appear here.">
     <section className="panel section plannerShell">
@@ -1231,10 +1232,6 @@ function searchResult(type, label, tab, record, values) {
 function groupTimeline(items, getDate) {
   const years = groupByValue(items, item => new Date(`${getDate(item)}T00:00:00`).getFullYear(), "desc");
   return years.map(([year, yearItems]) => [year, groupByValue(yearItems, item => new Date(`${getDate(item)}T00:00:00`).getMonth()).map(([month, monthItems]) => [month, groupByValue(monthItems, getDate, "desc")])]);
-}
-
-function groupByDate(items, getDate) {
-  return groupByValue(items, item => getDate(item) || "1970-01-01");
 }
 
 function groupByValue(items, getValue, direction = "asc") {

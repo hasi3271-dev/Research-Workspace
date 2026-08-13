@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildImportPreview } from "../lib/import-mapper.js";
+import { groupTodosByDate } from "../lib/todo-order.js";
+
+test("pins today's todo group above other dates", () => {
+  const items = [
+    { id: "future", date: "2026-08-15" },
+    { id: "today", date: "2026-08-13" },
+    { id: "past", date: "2026-08-01" }
+  ];
+
+  const groups = groupTodosByDate(items, item => item.date, "2026-08-13");
+
+  assert.deepEqual(groups.map(([date]) => date), ["2026-08-13", "2026-08-01", "2026-08-15"]);
+});
 
 test("maps planner items to todos and preserves raw fields", () => {
   const preview = buildImportPreview([
